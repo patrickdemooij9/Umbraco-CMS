@@ -110,6 +110,12 @@ public sealed class HealthCheckSourceGenerator : IIncrementalGenerator
         context.AddSource("HealthCheckRegistrations.g.cs", sb.ToString());
     }
 
+    /// <summary>
+    ///     Returns <see langword="true" /> if <paramref name="symbol" /> directly or transitively
+    ///     inherits from <paramref name="baseSymbol" />.
+    /// </summary>
+    /// <param name="symbol">The type symbol to test.</param>
+    /// <param name="baseSymbol">The expected base class.</param>
     private static bool InheritsFrom(INamedTypeSymbol symbol, INamedTypeSymbol baseSymbol)
     {
         INamedTypeSymbol? current = symbol.BaseType;

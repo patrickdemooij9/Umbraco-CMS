@@ -355,9 +355,10 @@ public static partial class UmbracoBuilderExtensions
                 .GetCustomAttributes<GeneratedHealthChecksAttribute>()
                 .Select(attr => attr.HealthCheckType);
         }
-        catch
+        catch (Exception ex) when (ex is FileNotFoundException or TypeLoadException or BadImageFormatException)
         {
-            // Some assemblies may throw on attribute retrieval; skip them gracefully.
+            // The assembly may not be fully loadable (e.g. a native or partially-loaded assembly).
+            // Skip it gracefully; TypeLoader will handle it via its own error-tolerant scanning.
             return Enumerable.Empty<Type>();
         }
     }

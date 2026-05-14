@@ -80,8 +80,10 @@ public class HealthCheckDiscoveryBenchmarks
             {
                 attributes = assembly.GetCustomAttributes<GeneratedHealthChecksAttribute>();
             }
-            catch
+            catch (Exception ex) when (ex is FileNotFoundException or TypeLoadException or BadImageFormatException)
             {
+                // Skip assemblies that cannot expose their custom attributes
+                // (e.g. native or partially-loaded assemblies).
                 continue;
             }
 
