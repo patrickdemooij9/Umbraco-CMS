@@ -23,5 +23,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Umbraco.Cms\Umbraco.Cms.csproj" />
+    <!-- Source generator: generates [assembly: GeneratedHealthChecksAttribute(...)] for HealthCheck types visible to this project. -->
+    <ProjectReference Include="..\..\src\Umbraco.Cms.SourceGenerators\Umbraco.Cms.SourceGenerators.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>

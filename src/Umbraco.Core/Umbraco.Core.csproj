@@ -90,4 +90,11 @@
   <ItemGroup>
     <EmbeddedResource Include="EmbeddedResources\**\*" />
   </ItemGroup>
+
+  <ItemGroup>
+    <!-- Source generator: emits [assembly: GeneratedHealthChecksAttribute(...)] for each HealthCheck subclass in this assembly. -->
+    <ProjectReference Include="..\Umbraco.Cms.SourceGenerators\Umbraco.Cms.SourceGenerators.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
 </Project>
