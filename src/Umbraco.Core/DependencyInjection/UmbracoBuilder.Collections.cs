@@ -1,3 +1,4 @@
+using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Umbraco.Cms.Core.Actions;
 using Umbraco.Cms.Core.Cache;
@@ -45,7 +46,7 @@ public static partial class UmbracoBuilderExtensions
             .Append<ContentFinderByUrlAlias>()
             .Append<ContentFinderByRedirectUrl>();
         builder.EditorValidators().Add(() => builder.TypeLoader.GetTypes<IEditorValidator>());
-        builder.HealthChecks().Add(() => builder.TypeLoader.GetTypes<HealthCheck>());
+        builder.HealthChecks().Add(() => DiscoverHealthChecks(builder.TypeLoader));
         builder.HealthCheckNotificationMethods().Add(() => builder.TypeLoader.GetTypes<IHealthCheckNotificationMethod>());
         builder.UrlProviders()
             .Append<AliasUrlProvider>()
@@ -298,4 +299,66 @@ public static partial class UmbracoBuilderExtensions
     /// <returns>The <see cref="ContentTypeFilterCollectionBuilder" />.</returns>
     public static ContentTypeFilterCollectionBuilder ContentTypeFilters(this IUmbracoBuilder builder)
         => builder.WithCollectionBuilder<ContentTypeFilterCollectionBuilder>();
+
+    /// <summary>
+    ///     Discovers all <see cref="HealthCheck" /> types, preferring compile-time registrations
+    ///     emitted by the source generator over a runtime reflection scan.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         When the <c>Umbraco.Cms.SourceGenerators</c> analyzer is applied to an assembly it
+    ///         emits one <see cref="GeneratedHealthChecksAttribute" /> per concrete
+    ///         <see cref="HealthCheck" /> subclass.  Collecting those attributes at startup is
+    ///         significantly faster than scanning every type in every loaded assembly.
+    ///     </para>
+    ///     <para>
+    ///         When source-generated types are found, the runtime reflection scan is skipped
+    ///         entirely for the fast path.  Third-party assemblies that ship custom
+    ///         <see cref="HealthCheck" /> implementations without the source generator should
+    ///         either add the <c>Umbraco.Cms.SourceGenerators</c> analyzer reference, or register
+    ///         their checks explicitly via <c>builder.HealthChecks().Add&lt;T&gt;()</c>.
+    ///     </para>
+    ///     <para>
+    ///         If no source-generated registrations are found at all (e.g. during unit tests
+    ///         where only a subset of assemblies is loaded), the method falls back to the
+    ///         original <see cref="TypeLoader" /> reflection scan to preserve full compatibility.
+    ///     </para>
+    /// </remarks>
+    private static IEnumerable<Type> DiscoverHealthChecks(TypeLoader typeLoader)
+    {
+        // Fast path: collect types registered at compile time by the source generator.
+        // Reading assembly-level attributes is orders of magnitude faster than iterating
+        // all types in all assemblies.
+        var generatedTypes = AppDomain.CurrentDomain
+            .GetAssemblies()
+            .SelectMany(GetGeneratedHealthCheckTypes)
+            .ToList();
+
+        if (generatedTypes.Count > 0)
+        {
+            // Skip the full reflection scan: all built-in HealthCheck types are registered
+            // via the generated attributes.  Third-party assemblies that do not use the
+            // source generator should register their checks via the builder API.
+            return generatedTypes;
+        }
+
+        // No source-generated types found; fall back entirely to the reflection scan.
+        // This path executes during unit tests where only partial assemblies are loaded.
+        return typeLoader.GetTypes<HealthCheck>();
+    }
+
+    private static IEnumerable<Type> GetGeneratedHealthCheckTypes(Assembly assembly)
+    {
+        try
+        {
+            return assembly
+                .GetCustomAttributes<GeneratedHealthChecksAttribute>()
+                .Select(attr => attr.HealthCheckType);
+        }
+        catch
+        {
+            // Some assemblies may throw on attribute retrieval; skip them gracefully.
+            return Enumerable.Empty<Type>();
+        }
+    }
 }
